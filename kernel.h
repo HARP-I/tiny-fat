@@ -10,8 +10,8 @@
 // #include "disk.h"
 
 // blk state
-constexpr u8_t FREE = u8_t(0x00);
-constexpr u8_t EOF = u8_t(0xff);
+constexpr u8_t FAT_FREE = u8_t(0x00);
+constexpr u8_t FAT_EOF = u8_t(0xff);
 
 // attribute bit
 constexpr u8_t ATTR_DIRECTORY = 0x10;
@@ -21,6 +21,17 @@ constexpr u8_t ATTR_DIRECTORY = 0x10;
 // file type
 constexpr u8_t TYPE_FILE = 0x0;
 constexpr u8_t TYPE_DIR = 0x1;
+
+// close mode
+constexpr u8_t CLOSE_SYNC = 0x0;
+constexpr u8_t CLOSE_NO_SYNC = 0x1;
+
+// sync mode
+constexpr u8_t SYNC_HEAD = 0x1;
+constexpr u8_t SYNC_FCB = 0x2;
+constexpr u8_t SYNC_STRONG = SYNC_FCB | SYNC_HEAD;
+
+// constexpr u8_t TYPE_DIR = 0x1;
 
 // dos boot record / more formally -> os boot record(OBR)
 typedef struct DBR
@@ -46,14 +57,19 @@ typedef struct DirEnt
 // file control block
 typedef struct FCB
 {
-    u8_t filename[6];
-    u8_t first;
+    char filename[6] = "";
+    u8_t first = FAT_EOF;
+    u8_t *buf = nullptr;
+    int blkNum;
+    // addr <- curBlkId || offset
+    int curBlkId;
+    int offset;
 } fcb_t;
 
 typedef struct DCB
 {
-    u8_t dirname[6];
-    u8_t first;
+    u8_t dirname[6] = "";
+    u8_t first = FAT_EOF;
     dirEnt_t curDir[8];
     u8_t blkSz;     // dir size in blk
     u8_t maxEntNum; // dirEntNum * blkSz
@@ -65,17 +81,25 @@ void fs_shutdown();
 
 // syscall about file
 //
-void fs_create(const char *filename, int filetype);
-void fs_delete(const char *filename);
+int fs_create(const char *filename, u8_t filetype);
+int fs_delete(const char *filename);
 
 int fs_open(const char *filename);
 void fs_close(int fd);
 
-void fs_read(int fd, void *buffer, int nbytes);
-void fs_write(int fd, void *buffer, int nbytes);
+// deprecated ... unused currently
+void fs_sync(u8_t mode);
+void fs_fcb_sync(int fd);
 
-// void fs_mkdir(char *filename);
-// void fs_ls(char *filename);
+// int fs_read(int fd, void *buffer, int nbytes);
+// int fs_write(int fd, void *buffer, int nbytes);
+
+// one read and one write
+int fs_read(int fd, void *buffer, int nbytes);
+int fs_write(int fd, void *buffer, int nbytes);
+
+int fs_ls();
+int fs_cd(const char *dirname);
 
 #endif // FATFS_H_
 
@@ -85,3 +109,24 @@ void fs_write(int fd, void *buffer, int nbytes);
 // cout << "**********************Commands List************************\n";
 // cout << "mkdir ls touch cd rm open close read wirte" << endl;
 // cout << "Type \"help\"  to see more infomation." << endl;
+
+// if (inRoot) // rename
+// {
+//     int rtId = 0;
+//     while (rtId < rootEntNum)
+//     {
+//         if (!strcmp(rootDir[rtId].filename, filename) && (filetype))
+//         {
+//             log("no rootEnt\n");
+//             return -1;
+//         }
+//     }
+// }
+// else // not in root
+// {
+//     int dirId = 0;
+//     if (!strcmp(dcb->curDir[dirId].filename, filename))
+//     {
+//         log("no dirEnt\n");
+//         return -1;
+//     }
